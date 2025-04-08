@@ -146,7 +146,7 @@ async def start_command(client: Client, message: Message):
 
         if FILE_AUTO_DELETE > 0:
             notification_msg = await message.reply(
-                f"<b>This file will be deleted in {get_exp_time(FILE_AUTO_DELETE)}.Long press the files to select and click on download option. Please download it before it gets deleted 🙃.</b>"
+                f"<b>This file will be deleted in {get_exp_time(FILE_AUTO_DELETE)}./nPlease download it before it gets deleted 🙃./n/n 𝗟𝗼𝗻𝗴 𝗣𝗿𝗲𝘀𝘀 the files to select and click on 𝗱𝗼𝘄𝗻𝗹𝗼𝗮𝗱 𝗯𝘂𝘁𝘁𝗼𝗻 on top to download the files 😊.</b>"
             )
 
             await asyncio.sleep(FILE_AUTO_DELETE)
