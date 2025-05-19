@@ -37,11 +37,11 @@ DB_URI = os.environ.get("DATABASE_URL", "")
 DB_NAME = os.environ.get("DATABASE_NAME", "Cluster0")
 
 #Time in seconds for message delete, put 0 to never delete
-TIME = int(os.environ.get("TIME", " 1200"))
+TIME = int(os.environ.get("TIME", "6000"))
 
 
 #force sub channel id, if you want enable force sub
-FORCE_SUB_CHANNEL1 = int(os.environ.get("FORCE_SUB_CHANNEL1", "-1002312433199"))
+FORCE_SUB_CHANNEL1 = int(os.environ.get("FORCE_SUB_CHANNEL1", ""))
 #put 0 to disable
 FORCE_SUB_CHANNEL2 = int(os.environ.get("FORCE_SUB_CHANNEL2", "0"))#put 0 to disable
 FORCE_SUB_CHANNEL3 = int(os.environ.get("FORCE_SUB_CHANNEL3", "0"))#put 0 to disable
@@ -62,7 +62,7 @@ IS_VERIFY = os.environ.get("IS_VERIFY", "False")
 TUT_VID = os.environ.get("TUT_VID","https://t.me/hwdownload/3")
 
 
-HELP_TXT = "<b><blockquote>ᴛʜɪs ɪs ᴀɴ ғɪʟᴇ ᴛᴏ ʟɪɴᴋ ʙᴏᴛ ᴡᴏʀᴋ ғᴏʀ @moxi.beatz\n\n❏ ʙᴏᴛ ᴄᴏᴍᴍᴀɴᴅs\n├/start : sᴛᴀʀᴛ ᴛʜᴇ ʙᴏᴛ\n├/about : ᴏᴜʀ Iɴғᴏʀᴍᴀᴛɪᴏɴ\n└/help : ʜᴇʟᴘ ʀᴇʟᴀᴛᴇᴅ ʙᴏᴛ\n\n sɪᴍᴘʟʏ ᴄʟɪᴄᴋ ᴏɴ ʟɪɴᴋ ᴀɴᴅ sᴛᴀʀᴛ ᴛʜᴇ ʙᴏᴛ ᴊᴏɪɴ ʙᴏᴛʜ ᴄʜᴀɴɴᴇʟs ᴀɴᴅ ᴛʀʏ ᴀɢᴀɪɴ ᴛʜᴀᴛs ɪᴛ.....!\n\n ᴅᴇᴠᴇʟᴏᴘᴇᴅ ʙʏ <a href=https://t.me/iitsme2807>𝐌𝐨𝐧𝐢𝐬𝐡 🥷</a></blockquote></b>"
+HELP_TXT = "<b><blockquote>ᴛʜɪs ɪs ᴀɴ ғɪʟᴇ ᴛᴏ ʟɪɴᴋ ʙᴏᴛ ᴡᴏʀᴋ ғᴏʀ @moxi_beatz\n\n❏ ʙᴏᴛ ᴄᴏᴍᴍᴀɴᴅs\n├/start : sᴛᴀʀᴛ ᴛʜᴇ ʙᴏᴛ\n├/about : ᴏᴜʀ Iɴғᴏʀᴍᴀᴛɪᴏɴ\n└/help : ʜᴇʟᴘ ʀᴇʟᴀᴛᴇᴅ ʙᴏᴛ\n\n sɪᴍᴘʟʏ ᴄʟɪᴄᴋ ᴏɴ ʟɪɴᴋ ᴀɴᴅ sᴛᴀʀᴛ ᴛʜᴇ ʙᴏᴛ ᴊᴏɪɴ ʙᴏᴛʜ ᴄʜᴀɴɴᴇʟs ᴀɴᴅ ᴛʀʏ ᴀɢᴀɪɴ ᴛʜᴀᴛs ɪᴛ.....!\n\n ᴅᴇᴠᴇʟᴏᴘᴇᴅ ʙʏ <a href=https://t.me/iitsme2807>𝐌𝐨𝐧𝐢𝐬𝐡 🥷</a></blockquote></b>"
 
 ABOUT_TXT = "<b><blockquote>◈ 𝐌𝐚𝐢𝐧 𝐂𝐡𝐚𝐧𝐧𝐞𝐥: <a href=https://t.me/moxibeatz>𝐉𝐨𝐢𝐧 𝐍𝐨𝐰 😁👊</a>\n◈ 𝐂𝐥𝐢𝐩𝐬 𝐆𝐫𝐨𝐮𝐩: <a href=https://t.me/scenepacksss>𝐆𝐞𝐭 𝐂𝐥𝐢𝐩𝐬 𝐇𝐞𝐫𝐞 ⚡</a>\n◈ 𝐎𝐰𝐧𝐞𝐫 <a href=https://t.me/iitsme2807>𝐌𝐨𝐧𝐢𝐬𝐡 🥷</a></blockquote></b>"
 
