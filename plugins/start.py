@@ -36,8 +36,6 @@ TUT_VID = f"{TUT_VID}"
 
 
 
-import asyncio, random, time
-
 
 LOG_CHANNEL_ID = -1002612670454
 
@@ -191,12 +189,6 @@ async def start_command(client: Client, message: Message):
         return
 
 
-@Client.on_startup()
-async def on_startup(client):
-    try:
-        await client.send_message(LOG_CHANNEL_ID, "✅ Bot restarted and logging is working fine!")
-    except Exception as e:
-        print(f"Startup log failed: {e}")
 
 
 
