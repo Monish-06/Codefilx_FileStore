@@ -35,21 +35,30 @@ TUT_VID = f"{TUT_VID}"
 
 
 
-@Bot.on_message(filters.command('start') & filters.private & subscribed1 & subscribed2 & subscribed3 & subscribed4)
+
+import asyncio, random, time
+
+
+LOG_CHANNEL_ID = -1002612670454
+
+
+@Client.on_message(filters.command("start") & filters.private)
 async def start_command(client: Client, message: Message):
     id = message.from_user.id
+
     if not await present_user(id):
         try:
             await add_user(id)
         except:
             pass
 
+    # Admins auto-verify
     if id in ADMINS:
         verify_status = {
-            'is_verified': True,
-            'verify_token': None,
-            'verified_time': time.time(),
-            'link': ""
+            "is_verified": True,
+            "verify_token": None,
+            "verified_time": time.time(),
+            "link": ""
         }
     else:
         verify_status = await get_verify_status(id)
@@ -63,164 +72,138 @@ async def start_command(client: Client, message: Message):
                 if verify_status['verify_token'] != token:
                     return await message.reply("Your token is invalid or expired. Try again by clicking /start.")
                 await update_verify_status(id, is_verified=True, verified_time=time.time())
-                if verify_status["link"] == "":
-                    reply_markup = None
-                return await message.reply(
-                    f"Your token has been successfully verified and is valid for {get_exp_time(VERIFY_EXPIRE)}",
-                    reply_markup=reply_markup,
-                    protect_content=False,
-                    quote=True
-                )
+                return await message.reply("Your token has been successfully verified and is valid.")
 
             if not verify_status['is_verified']:
-                token = ''.join(random.choices(rohit.ascii_letters + rohit.digits, k=10))
+                token = ''.join(random.choices(random.ascii_letters + random.digits, k=10))
                 await update_verify_status(id, verify_token=token, link="")
                 link = await get_shortlink(SHORTLINK_URL, SHORTLINK_API, f'https://telegram.dog/{client.username}?start=verify_{token}')
                 btn = [
                     [InlineKeyboardButton("• ᴏᴘᴇɴ ʟɪɴᴋ •", url=link), InlineKeyboardButton('• ᴛᴜᴛᴏʀɪᴀʟ •', url=TUT_VID)],
                     [InlineKeyboardButton('• ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ •', callback_data='premium')]
                 ]
-                return await message.reply(
-                    f"𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. 𝗣𝗹𝗲𝗮𝘀𝗲 𝗿𝗲𝗳𝗿𝗲𝘀𝗵 𝘆𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝘁𝗼 𝗰𝗼𝗻𝘁𝗶𝗻𝘂𝗲..\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(VERIFY_EXPIRE)}",
-                    reply_markup=InlineKeyboardMarkup(btn),
-                    protect_content=False,
-                    quote=True
-                )
+                return await message.reply("Token expired. Click below to get a new one.", reply_markup=InlineKeyboardMarkup(btn))
 
     if len(message.text) > 7:
         try:
             base64_string = message.text.split(" ", 1)[1]
-            string = await decode(base64_string)
-            argument = string.split("-")
-        except Exception:
+            decoded = await decode(base64_string)
+            args = decoded.split("-")
+        except:
             return
 
         ids = []
         try:
-            if len(argument) == 3:
-                start = int(int(argument[1]) / abs(client.db_channel.id))
-                end = int(int(argument[2]) / abs(client.db_channel.id))
-                ids = range(start, end + 1) if start <= end else list(range(start, end - 1, -1))
-            elif len(argument) == 2:
-                ids = [int(int(argument[1]) / abs(client.db_channel.id))]
-        except Exception as e:
-            print(f"Error decoding IDs: {e}")
+            if len(args) == 3:
+                start = int(int(args[1]) / abs(client.db_channel.id))
+                end = int(int(args[2]) / abs(client.db_channel.id))
+                ids = range(start, end + 1) if start <= end else range(start, end - 1, -1)
+            elif len(args) == 2:
+                ids = [int(int(args[1]) / abs(client.db_channel.id))]
+        except:
             return
 
         temp_msg = await message.reply("<b>Please wait...</b>")
         try:
             messages = await get_messages(client, ids)
-        except Exception as e:
-            await message.reply_text("Something went wrong!")
-            print(f"Error getting messages: {e}")
+        except Exception:
+            await message.reply("Something went wrong while fetching files.")
             return
         finally:
             await temp_msg.delete()
 
-        from pyrogram.types import InputMediaVideo, InputMediaDocument, InputMediaPhoto
+        batches = []
+        batch = []
+        prev_type = None
 
-        def get_media_type(msg):
-            if msg.video:
-                return "video"
-            elif msg.photo:
-                return "photo"
-            elif msg.document:
-                return "document"
-            else:
-                return None
-
-        grouped = {}
         for msg in messages:
-            media_type = get_media_type(msg)
-            if not media_type:
-                continue
-            grouped.setdefault(media_type, []).append(msg)
+            if msg.media:
+                mtype = msg.media.value
+                if prev_type and mtype != prev_type:
+                    batches.append(batch)
+                    batch = []
+                batch.append(msg)
+                prev_type = mtype
+            else:
+                if batch:
+                    batches.append(batch)
+                    batch = []
+                batches.append([msg])
+                prev_type = None
 
-        codeflix_msgs = []
+        if batch:
+            batches.append(batch)
 
-        for media_type, group_msgs in grouped.items():
-            i = 0
-            while i < len(group_msgs):
-                batch = group_msgs[i:i + 10]
-                media_group = []
+        sent_messages = []
 
-                for m in batch:
-                    caption = (CUSTOM_CAPTION.format(previouscaption="" if not m.caption else m.caption.html,
-                                                     filename=m.document.file_name)
-                               if bool(CUSTOM_CAPTION) and bool(m.document)
-                               else ("" if not m.caption else m.caption.html))
-
-                    if media_type == "video":
-                        media_group.append(InputMediaVideo(media=m.video.file_id, caption=caption if len(media_group) == 0 else None))
-                    elif media_type == "document":
-                        media_group.append(InputMediaDocument(media=m.document.file_id, caption=caption if len(media_group) == 0 else None))
-                    elif media_type == "photo":
-                        media_group.append(InputMediaPhoto(media=m.photo.file_id, caption=caption if len(media_group) == 0 else None))
-
+        for batch in batches:
+            await asyncio.sleep(5)
+            if all(msg.media and msg.media.value == batch[0].media.value for msg in batch) and batch[0].media:
+                media_group = batch[:10]
                 try:
-                    sent_msgs = await client.send_media_group(
+                    copies = await client.copy_media_group(
                         chat_id=message.from_user.id,
-                        media=media_group,
-                        protect_content=PROTECT_CONTENT
+                        messages=media_group,
+                        caption=batch[0].caption if len(batch) == 1 else None,
+                        reply_markup=None
                     )
-                    codeflix_msgs.extend(sent_msgs)
-                    await asyncio.sleep(2)
+                    sent_messages.extend(copies)
                 except FloodWait as e:
+                    await client.send_message(LOG_CHANNEL_ID, f"⚠️ FloodWait for {e.x}s")
                     await asyncio.sleep(e.x)
                 except Exception as e:
-                    print(f"Error sending media group: {e}")
-                i += 10
-
-        if FILE_AUTO_DELETE > 0 and codeflix_msgs:
-            notification_msg = await message.reply(
-                f"<b>This file will be deleted in {get_exp_time(FILE_AUTO_DELETE)}.\n Please download it before it gets deleted 🙃.</b>"
-            )
-
-            await asyncio.sleep(FILE_AUTO_DELETE)
-
-            for snt_msg in codeflix_msgs:
-                if snt_msg:
+                    await client.send_message(LOG_CHANNEL_ID, f"❌ Media group send error: {e}")
+            else:
+                for msg in batch:
                     try:
-                        await snt_msg.delete()
+                        copied = await msg.copy(chat_id=message.from_user.id)
+                        sent_messages.append(copied)
+                    except FloodWait as e:
+                        await client.send_message(LOG_CHANNEL_ID, f"⚠️ FloodWait for {e.x}s")
+                        await asyncio.sleep(e.x)
                     except Exception as e:
-                        print(f"Error deleting message {snt_msg.id}: {e}")
+                        await client.send_message(LOG_CHANNEL_ID, f"❌ Copy failed: {e}")
 
-            try:
-                reload_url = (
-                    f"https://t.me/{client.username}?start={message.command[1]}"
-                    if message.command and len(message.command) > 1
-                    else None
-                )
-                keyboard = InlineKeyboardMarkup(
-                    [[InlineKeyboardButton("Request another movie clips 😇", url="https://t.me/scenepacksss")]]
-                ) if reload_url else None
-
-                await notification_msg.edit(
-                    "<b>ʏᴏᴜʀ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ ɪꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ !!</b>",
-                    reply_markup=keyboard
-                )
-            except Exception as e:
-                print(f"Error updating notification: {e}")
-
+        if FILE_AUTO_DELETE > 0:
+            note = await message.reply("These files will auto-delete after some time. Download them.")
+            await asyncio.sleep(FILE_AUTO_DELETE)
+            for m in sent_messages:
+                try:
+                    await m.delete()
+                except:
+                    pass
+            await note.edit("Files deleted. You can request them again if needed.")
     else:
         reply_markup = InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton("• ᴀʙᴏᴜᴛ", callback_data="about"),
-                InlineKeyboardButton("ʜᴇʟᴘ •", callback_data="help")
-            ]
+            [InlineKeyboardButton("• ᴀʙᴏᴜᴛ", callback_data="about"), InlineKeyboardButton("ʜᴇʟᴘ •", callback_data="help")]
         ])
         await message.reply_photo(
             photo=START_PIC,
             caption=START_MSG.format(
                 first=message.from_user.first_name,
                 last=message.from_user.last_name,
-                username=None if not message.from_user.username else '@' + message.from_user.username,
+                username='@' + message.from_user.username if message.from_user.username else None,
                 mention=message.from_user.mention,
                 id=message.from_user.id
             ),
             reply_markup=reply_markup
         )
         return
+
+
+@Client.on_startup()
+async def on_startup(client):
+    try:
+        await client.send_message(LOG_CHANNEL_ID, "✅ Bot restarted and logging is working fine!")
+    except Exception as e:
+        print(f"Startup log failed: {e}")
+
+
+
+
+
+
+                
 
 
 
