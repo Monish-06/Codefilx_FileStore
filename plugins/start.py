@@ -31,6 +31,10 @@ from database.database import *
 FILE_AUTO_DELETE = TIME  # Example: 3600 seconds (1 hour)
 TUT_VID = f"{TUT_VID}"
 
+
+
+
+
 @Bot.on_message(filters.command('start') & filters.private & subscribed1 & subscribed2 & subscribed3 & subscribed4)
 async def start_command(client: Client, message: Message):
     id = message.from_user.id
@@ -40,18 +44,16 @@ async def start_command(client: Client, message: Message):
         except:
             pass
 
-    # Check if user is an admin and treat them as verified
     if id in ADMINS:
         verify_status = {
             'is_verified': True,
-            'verify_token': None,  # Admins don't need a token
+            'verify_token': None,
             'verified_time': time.time(),
             'link': ""
         }
     else:
         verify_status = await get_verify_status(id)
 
-        # If TOKEN is enabled, handle verification logic
         if TOKEN:
             if verify_status['is_verified'] and VERIFY_EXPIRE < (time.time() - verify_status['verified_time']):
                 await update_verify_status(id, is_verified=False)
@@ -79,39 +81,31 @@ async def start_command(client: Client, message: Message):
                     [InlineKeyboardButton('• ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ •', callback_data='premium')]
                 ]
                 return await message.reply(
-                    f"𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. 𝗣𝗹𝗲𝗮𝘀𝗲 𝗿𝗲𝗳𝗿𝗲𝘀𝗵 𝘆𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝘁𝗼 𝗰𝗼𝗻𝘁𝗶𝗻𝘂𝗲..\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(VERIFY_EXPIRE)}\n\n<b>ᴡʜᴀᴛ ɪs ᴛʜᴇ ᴛᴏᴋᴇɴ??</b>\n\nᴛʜɪs ɪs ᴀɴ ᴀᴅs ᴛᴏᴋᴇɴ. ᴘᴀssɪɴɢ ᴏɴᴇ ᴀᴅ ᴀʟʟᴏᴡs ʏᴏᴜ ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ ғᴏʀ {get_exp_time(VERIFY_EXPIRE)}</b>",
+                    f"𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. 𝗣𝗹𝗲𝗮𝘀𝗲 𝗿𝗲𝗳𝗿𝗲𝘀𝗵 𝘆𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝘁𝗼 𝗰𝗼𝗻𝘁𝗶𝗻𝘂𝗲..\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(VERIFY_EXPIRE)}",
                     reply_markup=InlineKeyboardMarkup(btn),
                     protect_content=False,
                     quote=True
                 )
 
-    # Handle normal message flow
-    text = message.text
-    if len(text) > 7:
+    if len(message.text) > 7:
         try:
-            base64_string = text.split(" ", 1)[1]
-        except IndexError:
+            base64_string = message.text.split(" ", 1)[1]
+            string = await decode(base64_string)
+            argument = string.split("-")
+        except Exception:
             return
 
-        string = await decode(base64_string)
-        argument = string.split("-")
-
         ids = []
-        if len(argument) == 3:
-            try:
+        try:
+            if len(argument) == 3:
                 start = int(int(argument[1]) / abs(client.db_channel.id))
                 end = int(int(argument[2]) / abs(client.db_channel.id))
                 ids = range(start, end + 1) if start <= end else list(range(start, end - 1, -1))
-            except Exception as e:
-                print(f"Error decoding IDs: {e}")
-                return
-
-        elif len(argument) == 2:
-            try:
+            elif len(argument) == 2:
                 ids = [int(int(argument[1]) / abs(client.db_channel.id))]
-            except Exception as e:
-                print(f"Error decoding ID: {e}")
-                return
+        except Exception as e:
+            print(f"Error decoding IDs: {e}")
+            return
 
         temp_msg = await message.reply("<b>Please wait...</b>")
         try:
@@ -123,38 +117,71 @@ async def start_command(client: Client, message: Message):
         finally:
             await temp_msg.delete()
 
-        codeflix_msgs = []
+        from pyrogram.types import InputMediaVideo, InputMediaDocument, InputMediaPhoto
+
+        def get_media_type(msg):
+            if msg.video:
+                return "video"
+            elif msg.photo:
+                return "photo"
+            elif msg.document:
+                return "document"
+            else:
+                return None
+
+        grouped = {}
         for msg in messages:
-            caption = (CUSTOM_CAPTION.format(previouscaption="" if not msg.caption else msg.caption.html, 
-                                             filename=msg.document.file_name) if bool(CUSTOM_CAPTION) and bool(msg.document)
-                       else ("" if not msg.caption else msg.caption.html))
+            media_type = get_media_type(msg)
+            if not media_type:
+                continue
+            grouped.setdefault(media_type, []).append(msg)
 
-            reply_markup = msg.reply_markup if DISABLE_CHANNEL_BUTTON else None
+        codeflix_msgs = []
 
-            try:
-                copied_msg = await msg.copy(chat_id=message.from_user.id, caption=caption, parse_mode=ParseMode.HTML, 
-                                            reply_markup=reply_markup, protect_content=PROTECT_CONTENT)
-                codeflix_msgs.append(copied_msg)
-            except FloodWait as e:
-                await asyncio.sleep(e.x)
-                copied_msg = await msg.copy(chat_id=message.from_user.id, caption=caption, parse_mode=ParseMode.HTML, 
-                                            reply_markup=reply_markup, protect_content=PROTECT_CONTENT)
-                codeflix_msgs.append(copied_msg)
-            except Exception as e:
-                print(f"Failed to send message: {e}")
-                pass
+        for media_type, group_msgs in grouped.items():
+            i = 0
+            while i < len(group_msgs):
+                batch = group_msgs[i:i + 10]
+                media_group = []
 
-        if FILE_AUTO_DELETE > 0:
+                for m in batch:
+                    caption = (CUSTOM_CAPTION.format(previouscaption="" if not m.caption else m.caption.html,
+                                                     filename=m.document.file_name)
+                               if bool(CUSTOM_CAPTION) and bool(m.document)
+                               else ("" if not m.caption else m.caption.html))
+
+                    if media_type == "video":
+                        media_group.append(InputMediaVideo(media=m.video.file_id, caption=caption if len(media_group) == 0 else None))
+                    elif media_type == "document":
+                        media_group.append(InputMediaDocument(media=m.document.file_id, caption=caption if len(media_group) == 0 else None))
+                    elif media_type == "photo":
+                        media_group.append(InputMediaPhoto(media=m.photo.file_id, caption=caption if len(media_group) == 0 else None))
+
+                try:
+                    sent_msgs = await client.send_media_group(
+                        chat_id=message.from_user.id,
+                        media=media_group,
+                        protect_content=PROTECT_CONTENT
+                    )
+                    codeflix_msgs.extend(sent_msgs)
+                    await asyncio.sleep(2)
+                except FloodWait as e:
+                    await asyncio.sleep(e.x)
+                except Exception as e:
+                    print(f"Error sending media group: {e}")
+                i += 10
+
+        if FILE_AUTO_DELETE > 0 and codeflix_msgs:
             notification_msg = await message.reply(
-                f"<b>This file will be deleted in {get_exp_time(FILE_AUTO_DELETE)}.\n Please download it before it gets deleted 🙃.\n\n 𝗟𝗼𝗻𝗴 𝗣𝗿𝗲𝘀𝘀 the files to select and click on 𝗱𝗼𝘄𝗻𝗹𝗼𝗮𝗱 𝗯𝘂𝘁𝘁𝗼𝗻 on top to download the files 😊.</b>"
+                f"<b>This file will be deleted in {get_exp_time(FILE_AUTO_DELETE)}.\n Please download it before it gets deleted 🙃.</b>"
             )
 
             await asyncio.sleep(FILE_AUTO_DELETE)
 
-            for snt_msg in codeflix_msgs:    
+            for snt_msg in codeflix_msgs:
                 if snt_msg:
-                    try:    
-                        await snt_msg.delete()  
+                    try:
+                        await snt_msg.delete()
                     except Exception as e:
                         print(f"Error deleting message {snt_msg.id}: {e}")
 
@@ -173,18 +200,15 @@ async def start_command(client: Client, message: Message):
                     reply_markup=keyboard
                 )
             except Exception as e:
-                print(f"Error updating notification with 'Get File Again' button: {e}")
+                print(f"Error updating notification: {e}")
+
     else:
-        reply_markup = InlineKeyboardMarkup(
+        reply_markup = InlineKeyboardMarkup([
             [
-
-    [
-                    InlineKeyboardButton("• ᴀʙᴏᴜᴛ", callback_data = "about"),
-                    InlineKeyboardButton('ʜᴇʟᴘ •', callback_data = "help")
-
-    ]
+                InlineKeyboardButton("• ᴀʙᴏᴜᴛ", callback_data="about"),
+                InlineKeyboardButton("ʜᴇʟᴘ •", callback_data="help")
             ]
-        )
+        ])
         await message.reply_photo(
             photo=START_PIC,
             caption=START_MSG.format(
@@ -194,10 +218,13 @@ async def start_command(client: Client, message: Message):
                 mention=message.from_user.mention,
                 id=message.from_user.id
             ),
-            reply_markup=reply_markup#,
-            #message_effect_id=5104841245755180586  # 🔥
+            reply_markup=reply_markup
         )
         return
+
+
+
+
 
 
 
