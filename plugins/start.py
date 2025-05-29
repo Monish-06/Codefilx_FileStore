@@ -176,7 +176,7 @@ async def start_command(client: Client, message: Message):
                         protect_content=PROTECT_CONTENT
                     )
                     codeflix_msgs.extend(sent_msgs)
-                    await asyncio.sleep(5)
+                    await asyncio.sleep(10)
                 except FloodWait as e:
                     await asyncio.sleep(e.x)
                 except Exception as e:
