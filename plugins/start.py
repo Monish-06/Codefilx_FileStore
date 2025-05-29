@@ -45,6 +45,8 @@ LOG_CHANNEL_ID = -1002612670454
         
 
          
+
+                    
 @Bot.on_message(filters.command('start') & filters.private & subscribed1 & subscribed2 & subscribed3 & subscribed4)
 async def start_command(client: Client, message: Message):
     id = message.from_user.id
@@ -54,7 +56,6 @@ async def start_command(client: Client, message: Message):
         except:
             pass
 
-    # Verification system (unchanged)
     if id in ADMINS:
         verify_status = {
             'is_verified': True,
@@ -74,10 +75,17 @@ async def start_command(client: Client, message: Message):
                 if verify_status['verify_token'] != token:
                     return await message.reply("Your token is invalid or expired. Try again by clicking /start.")
                 await update_verify_status(id, is_verified=True, verified_time=time.time())
-                return await message.reply("Token verified ✅", quote=True)
+                if verify_status["link"] == "":
+                    reply_markup = None
+                return await message.reply(
+                    f"Your token has been successfully verified and is valid for {get_exp_time(VERIFY_EXPIRE)}",
+                    reply_markup=reply_markup,
+                    protect_content=False,
+                    quote=True
+                )
 
             if not verify_status['is_verified']:
-                token = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+                token = ''.join(random.choices(rohit.ascii_letters + rohit.digits, k=10))
                 await update_verify_status(id, verify_token=token, link="")
                 link = await get_shortlink(SHORTLINK_URL, SHORTLINK_API, f'https://telegram.dog/{client.username}?start=verify_{token}')
                 btn = [
@@ -85,202 +93,146 @@ async def start_command(client: Client, message: Message):
                     [InlineKeyboardButton('• ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ •', callback_data='premium')]
                 ]
                 return await message.reply(
-                    f"Token expired. Please refresh token to continue.\n\n<b>ᴛᴏᴋᴇɴ ᴛɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(VERIFY_EXPIRE)}",
+                    f"𝗬𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝗵𝗮𝘀 𝗲𝘅𝗽𝗶𝗿𝗲𝗱. 𝗣𝗹𝗲𝗮𝘀𝗲 𝗿𝗲𝗳𝗿𝗲𝘀𝗵 𝘆𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻 𝘁𝗼 𝗰𝗼𝗻𝘁𝗶𝗻𝘂𝗲..\n\n<b>Tᴏᴋᴇɴ Tɪᴍᴇᴏᴜᴛ:</b> {get_exp_time(VERIFY_EXPIRE)}",
                     reply_markup=InlineKeyboardMarkup(btn),
                     protect_content=False,
                     quote=True
                 )
 
-    # Deep link processing
     if len(message.text) > 7:
         try:
             base64_string = message.text.split(" ", 1)[1]
             string = await decode(base64_string)
             argument = string.split("-")
-        except:
+        except Exception:
             return
 
         ids = []
-        if len(argument) == 3:
-            try:
+        try:
+            if len(argument) == 3:
                 start = int(int(argument[1]) / abs(client.db_channel.id))
                 end = int(int(argument[2]) / abs(client.db_channel.id))
                 ids = range(start, end + 1) if start <= end else list(range(start, end - 1, -1))
-            except:
-                return
-        elif len(argument) == 2:
-            try:
+            elif len(argument) == 2:
                 ids = [int(int(argument[1]) / abs(client.db_channel.id))]
-            except:
-                return
+        except Exception as e:
+            print(f"Error decoding IDs: {e}")
+            return
 
         temp_msg = await message.reply("<b>Please wait...</b>")
         try:
             messages = await get_messages(client, ids)
-            if not messages:
-                await message.reply_text("No messages found!")
-                return
-        except:
+        except Exception as e:
             await message.reply_text("Something went wrong!")
+            print(f"Error getting messages: {e}")
             return
         finally:
             await temp_msg.delete()
 
-        codeflix_msgs = []
-        
-        async def send_media_group_safely(media_group):
-            try:
-                sent = await client.send_media_group(
-                    chat_id=message.chat.id,
-                    media=media_group,
-                    protect_content=PROTECT_CONTENT
-                )
-                codeflix_msgs.extend(sent)
-                await asyncio.sleep(5)  # 5-second delay between groups
-            except FloodWait as e:
-                await asyncio.sleep(e.x)
-                await send_media_group_safely(media_group)
-            except:
-                # Fallback to individual sends
-                for media in media_group:
-                    await send_individual_media(media)
+        from pyrogram.types import InputMediaVideo, InputMediaDocument, InputMediaPhoto
 
-        async def send_individual_media(media):
-            try:
-                if isinstance(media, InputMediaPhoto):
-                    msg = await message.reply_photo(
-                        photo=media.media,
-                        caption=media.caption,
-                        parse_mode=ParseMode.HTML
-                    )
-                elif isinstance(media, InputMediaVideo):
-                    msg = await message.reply_video(
-                        video=media.media,
-                        caption=media.caption,
-                        parse_mode=ParseMode.HTML
-                    )
-                elif isinstance(media, InputMediaDocument):
-                    msg = await message.reply_document(
-                        document=media.media,
-                        caption=media.caption,
-                        parse_mode=ParseMode.HTML
-                    )
-                codeflix_msgs.append(msg)
-                await asyncio.sleep(3)  # 3-second delay between individual messages
-            except:
-                pass
+        def get_media_type(msg):
+            if msg.video:
+                return "video"
+            elif msg.photo:
+                return "photo"
+            elif msg.document:
+                return "document"
+            else:
+                return None
 
-        media_group = []
-        current_type = None
-        
+        grouped = {}
         for msg in messages:
-            if not msg:
+            media_type = get_media_type(msg)
+            if not media_type:
                 continue
+            grouped.setdefault(media_type, []).append(msg)
 
-            # Handle text messages
-            if msg.text:
-                if media_group:
-                    await send_media_group_safely(media_group)
-                    media_group = []
+        codeflix_msgs = []
+
+        for media_type, group_msgs in grouped.items():
+            i = 0
+            while i < len(group_msgs):
+                batch = group_msgs[i:i + 10]
+                media_group = []
+
+                for m in batch:
+                    caption = (CUSTOM_CAPTION.format(previouscaption="" if not m.caption else m.caption.html,
+                                                     filename=m.document.file_name)
+                               if bool(CUSTOM_CAPTION) and bool(m.document)
+                               else ("" if not m.caption else m.caption.html))
+
+                    if media_type == "video":
+                        media_group.append(InputMediaVideo(media=m.video.file_id, caption=caption if len(media_group) == 0 else None))
+                    elif media_type == "document":
+                        media_group.append(InputMediaDocument(media=m.document.file_id, caption=caption if len(media_group) == 0 else None))
+                    elif media_type == "photo":
+                        media_group.append(InputMediaPhoto(media=m.photo.file_id, caption=caption if len(media_group) == 0 else None))
+
                 try:
-                    sent = await message.reply_text(msg.text.html if msg.text.html else msg.text)
-                    codeflix_msgs.append(sent)
-                    await asyncio.sleep(3)  # 3-second delay after text
-                except:
-                    pass
-                continue
+                    sent_msgs = await client.send_media_group(
+                        chat_id=message.from_user.id,
+                        media=media_group,
+                        protect_content=PROTECT_CONTENT
+                    )
+                    codeflix_msgs.extend(sent_msgs)
+                    await asyncio.sleep(2)
+                except FloodWait as e:
+                    await asyncio.sleep(e.x)
+                except Exception as e:
+                    print(f"Error sending media group: {e}")
+                i += 10
 
-            # Handle media
-            try:
-                media = None
-                if msg.photo:
-                    media = InputMediaPhoto(media=msg.photo.file_id)
-                    media_type = "photo"
-                elif msg.video:
-                    media = InputMediaVideo(media=msg.video.file_id)
-                    media_type = "video"
-                elif msg.document:
-                    media = InputMediaDocument(media=msg.document.file_id)
-                    media_type = "document"
-                
-                if media:
-                    if CUSTOM_CAPTION and msg.document:
-                        caption = CUSTOM_CAPTION.format(
-                            previouscaption="" if not msg.caption else msg.caption.html,
-                            filename=msg.document.file_name
-                        )
-                    elif msg.caption:
-                        caption = msg.caption.html
-                    
-                    if caption:
-                        media.caption = caption
-                        media.parse_mode = ParseMode.HTML
-
-                    # Start new group if type changes or limit reached
-                    if (media_type != current_type) or (len(media_group) >= 10):
-                        if media_group:
-                            await send_media_group_safely(media_group)
-                            media_group = []
-                        current_type = media_type
-
-                    media_group.append(media)
-            except:
-                continue
-
-        # Send remaining media
-        if media_group:
-            await send_media_group_safely(media_group)
-
-        # YOUR ORIGINAL AUTO-DELETE MESSAGE (UNCHANGED)
-        if FILE_AUTO_DELETE > 0:
+        if FILE_AUTO_DELETE > 0 and codeflix_msgs:
             notification_msg = await message.reply(
-                f"<b>This file will be deleted in {get_exp_time(FILE_AUTO_DELETE)}.\nPlease download before it gets deleted.</b>"
+                f"<b>This file will be deleted in {get_exp_time(FILE_AUTO_DELETE)}.\n Please download it before it gets deleted 🙃.</b>"
             )
+
             await asyncio.sleep(FILE_AUTO_DELETE)
 
             for snt_msg in codeflix_msgs:
                 if snt_msg:
                     try:
                         await snt_msg.delete()
-                    except:
-                        pass
+                    except Exception as e:
+                        print(f"Error deleting message {snt_msg.id}: {e}")
 
             try:
                 reload_url = (
                     f"https://t.me/{client.username}?start={message.command[1]}"
-                    if message.command and len(message.command) > 1 else None
+                    if message.command and len(message.command) > 1
+                    else None
                 )
                 keyboard = InlineKeyboardMarkup(
-                    [[InlineKeyboardButton("Request again", url=reload_url)]]
+                    [[InlineKeyboardButton("Request another movie clips 😇", url="https://t.me/scenepacksss")]]
                 ) if reload_url else None
 
                 await notification_msg.edit(
-                    "<b>All files have been deleted ✅</b>",
+                    "<b>ʏᴏᴜʀ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ ɪꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ !!</b>",
                     reply_markup=keyboard
                 )
-            except:
-                pass
-        return
+            except Exception as e:
+                print(f"Error updating notification: {e}")
 
-    # Default /start response
-    reply_markup = InlineKeyboardMarkup([
-        [InlineKeyboardButton("• ᴀʙᴏᴜᴛ", callback_data="about"),
-         InlineKeyboardButton("ʜᴇʟᴘ •", callback_data="help")]
-    ])
-    await message.reply_photo(
-        photo=START_PIC,
-        caption=START_MSG.format(
-            first=message.from_user.first_name,
-            last=message.from_user.last_name,
-            username=None if not message.from_user.username else '@' + message.from_user.username,
-            mention=message.from_user.mention,
-            id=message.from_user.id
-        ),
-        reply_markup=reply_markup
-    )
-    return
-
-
+    else:
+        reply_markup = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("• ᴀʙᴏᴜᴛ", callback_data="about"),
+                InlineKeyboardButton("ʜᴇʟᴘ •", callback_data="help")
+            ]
+        ])
+        await message.reply_photo(
+            photo=START_PIC,
+            caption=START_MSG.format(
+                first=message.from_user.first_name,
+                last=message.from_user.last_name,
+                username=None if not message.from_user.username else '@' + message.from_user.username,
+                mention=message.from_user.mention,
+                id=message.from_user.id
+            ),
+            reply_markup=reply_markup
+        )
+        return 
 
 
 
