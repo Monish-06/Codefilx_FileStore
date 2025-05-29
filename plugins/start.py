@@ -176,9 +176,14 @@ async def start_command(client: Client, message: Message):
                         protect_content=PROTECT_CONTENT
                     )
                     codeflix_msgs.extend(sent_msgs)
-                    await asyncio.sleep(10)
+                    await asyncio.sleep(30)
                 except FloodWait as e:
-                    await asyncio.sleep(e.x)
+                    await client.send_message(
+                        chat_id=LOG_CHANNEL_ID,
+                        text=f"🚨 <b>FloodWait Exception</b>\n\n⏱️ Sleeping for <code>{e.value}</code> seconds.\n\n📨 User ID: <code>{message.from_user.id}</code>\n💬 Command: <code>{message.text}</code>",
+                        parse_mode=ParseMode.HTML
+                        )
+                    await asyncio.sleep(e.value)
                 except Exception as e:
                     print(f"Error sending media group: {e}")
                 i += 10
